@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -19,7 +20,7 @@ public class FavoritoService {
 
     public List<Long> obtenerIdsFavoritos(String correo) {
         Usuario usuario = usuarioRepository.findByCorreo(correo)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
 
         return favoritoRepository.findByUsuarioId(usuario.getId())
                 .stream()
@@ -30,10 +31,10 @@ public class FavoritoService {
     @Transactional
     public boolean toggleFavorito(String correo, Long propiedadId) {
         if (propiedadId == null || propiedadId <= 0) {
-            throw new RuntimeException("El ID de la propiedad debe ser válido");
+            throw new IllegalArgumentException("El ID de la propiedad debe ser válido");
         }
         Usuario usuario = usuarioRepository.findByCorreo(correo)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
 
         boolean yaExiste = favoritoRepository.existsByUsuarioIdAndPropiedadId(usuario.getId(), propiedadId);
 

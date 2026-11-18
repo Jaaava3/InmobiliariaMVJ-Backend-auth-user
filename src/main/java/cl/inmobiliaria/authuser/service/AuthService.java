@@ -9,9 +9,13 @@ import cl.inmobiliaria.authuser.repository.RolRepository;
 import cl.inmobiliaria.authuser.repository.UsuarioRepository;
 import cl.inmobiliaria.authuser.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -28,21 +32,21 @@ public class AuthService {
         String rutLimpio = dto.getRut().trim().toUpperCase();
 
         if (!esRutChilenoValido(rutLimpio)) {
-            throw new RuntimeException("El dígito verificador del RUT no es válido");
+            throw new IllegalArgumentException("El dígito verificador del RUT no es válido");
         }
 
         if (usuarioRepository.existsByCorreo(correoLimpio)) {
-            throw new RuntimeException("El correo ya se encuentra registrado");
+            throw new DataIntegrityViolationException("El correo ya se encuentra registrado");
         }
 
         if (usuarioRepository.existsByRut(rutLimpio)) {
-            throw new RuntimeException("El RUT ya se encuentra registrado");
+            throw new DataIntegrityViolationException("El RUT ya se encuentra registrado");
         }
 
         String nombreRol = correoLimpio.endsWith("@mvj.cl") ? "ADMIN" : "USUARIO";
 
         Rol rolAsignado = rolRepository.findByTipoRol(nombreRol)
-                .orElseThrow(() -> new RuntimeException("El rol " + nombreRol + " no existe"));
+                .orElseThrow(() -> new NoSuchElementException("El rol " + nombreRol + " no existe"));
 
         Usuario nuevoUsuario = Usuario.builder()
                 .correo(correoLimpio)
@@ -89,10 +93,10 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest dto) {
         Usuario usuario = usuarioRepository.findByCorreo(dto.getCorreo().toLowerCase().trim())
-                .orElseThrow(() -> new RuntimeException("Credenciales inválidas"));
+                .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
 
         if (!passwordEncoder.matches(dto.getClave(), usuario.getClaveHash())) {
-            throw new RuntimeException("Credenciales inválidas");
+            throw new BadCredentialsException("Credenciales inválidas");
         }
 
         String token = jwtService.generarToken(usuario.getCorreo(), usuario.getRol().getTipoRol());
@@ -110,7 +114,7 @@ public class AuthService {
 
     public LoginResponse obtenerPerfil(String correo) {
         Usuario usuario = usuarioRepository.findByCorreo(correo)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
 
         return LoginResponse.builder()
                 .id(usuario.getId())
