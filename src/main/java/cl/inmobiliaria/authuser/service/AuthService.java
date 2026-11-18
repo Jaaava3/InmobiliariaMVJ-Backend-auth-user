@@ -22,30 +22,38 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    @Transactional
+@Transactional
     public LoginResponse registrar(RegistroRequest dto) {
-        if (usuarioRepository.existsByCorreo(dto.getCorreo())) {
+        String correoLimpio = dto.getCorreo().toLowerCase().trim();
+        String rutLimpio = dto.getRut().trim().toUpperCase();
+
+        if (!esRutChilenoValido(rutLimpio)) {
+            throw new RuntimeException("El dígito verificador del RUT no es válido");
+        }
+
+        if (usuarioRepository.existsByCorreo(correoLimpio)) {
             throw new RuntimeException("El correo ya se encuentra registrado");
         }
 
-        // @mvj.cl es ADMIN, cualquier otro dominio es USUARIO
-        String nombreRol = dto.getCorreo().toLowerCase().endsWith("@mvj.cl") ? "ADMIN" : "USUARIO";
+        if (usuarioRepository.existsByRut(rutLimpio)) {
+            throw new RuntimeException("El RUT ya se encuentra registrado");
+        }
+
+        String nombreRol = correoLimpio.endsWith("@mvj.cl") ? "ADMIN" : "USUARIO";
 
         Rol rolAsignado = rolRepository.findByTipoRol(nombreRol)
                 .orElseThrow(() -> new RuntimeException("El rol " + nombreRol + " no existe"));
 
         Usuario nuevoUsuario = Usuario.builder()
-                .correo(dto.getCorreo().toLowerCase().trim())
+                .correo(correoLimpio)
                 .claveHash(passwordEncoder.encode(dto.getClave()))
-                .nombre(dto.getNombre())
-                .apellido(dto.getApellido())
-                .rut(dto.getRut())
-                .telefono(dto.getTelefono())
+                .nombre(dto.getNombre().trim())
+                .apellido(dto.getApellido().trim())
+                .rut(rutLimpio)
                 .rol(rolAsignado)
                 .build();
 
         Usuario guardado = usuarioRepository.save(nuevoUsuario);
-
         String token = jwtService.generarToken(guardado.getCorreo(), guardado.getRol().getTipoRol());
 
         return LoginResponse.builder()
@@ -55,9 +63,28 @@ public class AuthService {
                 .nombre(guardado.getNombre())
                 .apellido(guardado.getApellido())
                 .rut(guardado.getRut())
-                .telefono(guardado.getTelefono())
                 .tipoRol(guardado.getRol().getTipoRol())
                 .build();
+    }
+
+    private boolean esRutChilenoValido(String rutFormateado) {
+        String limpio = rutFormateado.replaceAll("[^0-9kK]", "").toUpperCase();
+        if (limpio.length() < 8 || limpio.length() > 9) return false;
+
+        String cuerpo = limpio.substring(0, limpio.length() - 1);
+        char dvIngresado = limpio.charAt(limpio.length() - 1);
+
+        int suma = 0;
+        int multiplicador = 2;
+        for (int i = cuerpo.length() - 1; i >= 0; i--) {
+            suma += Character.getNumericValue(cuerpo.charAt(i)) * multiplicador;
+            multiplicador = (multiplicador == 7) ? 2 : multiplicador + 1;
+        }
+
+        int resto = 11 - (suma % 11);
+        char dvEsperado = (resto == 11) ? '0' : (resto == 10) ? 'K' : Character.forDigit(resto, 10);
+
+        return dvIngresado == dvEsperado;
     }
 
     public LoginResponse login(LoginRequest dto) {
@@ -77,7 +104,6 @@ public class AuthService {
                 .nombre(usuario.getNombre())
                 .apellido(usuario.getApellido())
                 .rut(usuario.getRut())
-                .telefono(usuario.getTelefono())
                 .tipoRol(usuario.getRol().getTipoRol())
                 .build();
     }
@@ -92,7 +118,6 @@ public class AuthService {
                 .nombre(usuario.getNombre())
                 .apellido(usuario.getApellido())
                 .rut(usuario.getRut())
-                .telefono(usuario.getTelefono())
                 .tipoRol(usuario.getRol().getTipoRol())
                 .build();
     }

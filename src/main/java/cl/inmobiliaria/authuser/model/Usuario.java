@@ -36,14 +36,11 @@ public class Usuario {
     @Column(nullable = false, length = 60)
     private String nombre;
 
-    @Column(length = 60)
+    @Column(nullable = false, length = 60)
     private String apellido;
 
-    @Column(length = 12)
+    @Column(nullable = false, unique = true, length = 12)
     private String rut;
-
-    @Column(length = 15)
-    private String telefono;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "rol_id", nullable = false)

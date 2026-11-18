@@ -29,6 +29,9 @@ public class FavoritoService {
 
     @Transactional
     public boolean toggleFavorito(String correo, Long propiedadId) {
+        if (propiedadId == null || propiedadId <= 0) {
+            throw new RuntimeException("El ID de la propiedad debe ser válido");
+        }
         Usuario usuario = usuarioRepository.findByCorreo(correo)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
