@@ -34,3 +34,6 @@ build/
 
 ### Repomix ###
 repomix-output.*
+
+### Variables de entorno ###
+.env
